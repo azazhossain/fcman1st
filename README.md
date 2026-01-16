@@ -1,1 +1,181 @@
 # fcman1st
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSC Business Study Pro - Auto Sync</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #fbbf24; --bg: #0f172a; --card-bg: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
+        body { font-family: 'Hind Siliguri', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; touch-action: none; }
+        .header { margin-bottom: 12px; }
+        select { padding: 8px; border-radius: 10px; border: 2px solid var(--primary); background: var(--card-bg); color: white; width: 310px; font-family: 'Hind Siliguri', sans-serif; outline: none; }
+        
+        /* ছোট আয়তাকার কার্ড সাইজ */
+        .card-container { position: relative; width: 330px; height: 170px; perspective: 1000px; }
+        .card { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; transition: transform 0.6s; cursor: pointer; }
+        .card.is-flipped { transform: rotateY(180deg); }
+        .face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 15px; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
+        .front { background: var(--card-bg); border-top: 5px solid var(--primary); }
+        .back { background: var(--card-bg); border-top: 5px solid var(--accent); transform: rotateY(180deg); }
+        .text { font-size: 0.95rem; font-weight: 600; line-height: 1.4; margin: 0; }
+        .status { margin-top: 15px; text-align: center; }
+        .counter { font-size: 0.9rem; font-weight: 700; color: var(--primary); }
+
+        /* Admin Interface */
+        #adminTrigger { position: fixed; bottom: 0; right: 0; width: 40px; height: 40px; cursor: pointer; opacity: 0; z-index: 1000; }
+        #adminPanel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+        .edit-box { background: #1e293b; padding: 15px; border-radius: 15px; width: 100%; max-width: 380px; border: 1px solid var(--primary); }
+        textarea { width: 100%; padding: 10px; border-radius: 8px; background: #0f172a; color: white; margin-bottom: 10px; border: 1px solid #334155; font-family: 'Hind Siliguri'; resize: none; }
+        .btn-row { display: flex; gap: 5px; margin-bottom: 10px; }
+        button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+        .sync-btn { background: #22c55e; color: white; width: 100%; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <select id="chapterMenu" onchange="initChapter()">
+            <option value="0">১ম: মৌলিক ধারণা</option>
+            <option value="1">২য়: ব্যবসায় পরিবেশ</option>
+            <option value="2">৩য়: একমালিকানা ব্যবসায়</option>
+            <option value="3">৪র্থ: অংশীদারি ব্যবসায়</option>
+            <option value="4">৫ম: যৌথ মূলধনী ব্যবসায়</option>
+            <option value="5">৬ষ্ঠ: সমবায় সমিতি</option>
+            <option value="6">৭ম: রাষ্ট্রীয় ব্যবসায়</option>
+            <option value="7">৮ম: ব্যবসায়িক আইন</option>
+            <option value="8">৯ম: ব্যবসায় সহায়ক সেবা</option>
+            <option value="9">১০ম: ব্যবসায় উদ্যোগ</option>
+            <option value="10">১১শ: তথ্য প্রযুক্তি</option>
+            <option value="11">১২শ: নৈতিকতা</option>
+        </select>
+    </div>
+
+    <div class="card-container" id="swipeArea">
+        <div class="card" id="mainCard" onclick="this.classList.toggle('is-flipped')">
+            <div class="face front"><p class="text" id="qText">লোডিং...</p></div>
+            <div class="face back"><p class="text" id="aText">লোডিং...</p></div>
+        </div>
+    </div>
+
+    <div class="status">
+        <div class="counter" id="count">১ / ২৫</div>
+    </div>
+
+    <div id="adminTrigger" onclick="openAdmin()"></div>
+
+    <div id="adminPanel">
+        <div class="edit-box">
+            <h3 style="text-align:center; color:var(--primary); margin-top:0;">সার্ভার কন্ট্রোল প্যানেল</h3>
+            <textarea id="editQ" rows="2" placeholder="প্রশ্ন"></textarea>
+            <textarea id="editA" rows="2" placeholder="উত্তর"></textarea>
+            <div class="btn-row">
+                <button style="background:var(--accent)" onclick="updateLocal(false)">এডিট</button>
+                <button style="background:var(--primary)" onclick="updateLocal(true)">নতুন যোগ</button>
+                <button style="background:#ef4444; color:white;" onclick="deleteLocal()">মুছুন</button>
+            </div>
+            <button class="sync-btn" id="syncBtn" onclick="syncWithGithub()">সরাসরি GitHub-এ সেভ করুন</button>
+            <button onclick="document.getElementById('adminPanel').style.display='none'" style="width:100%; margin-top:10px; background:#64748b; color:white;">বন্ধ</button>
+        </div>
+    </div>
+
+    <script>
+        // --- আপনার GitHub কনফিগারেশন ---
+        const GITHUB_TOKEN = "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"; 
+        const REPO_NAME = "Azazhossain/fcman1st";
+        const FILE_PATH = "index.html"; 
+
+        // ডাটাবেস (প্রথম ৩ অধ্যায় ২৫টি করে প্রশ্নসহ)
+        var masterData = [
+            [{q: "ব্যবসায় কী?", a: "মুনাফা অর্জনের লক্ষ্যে পরিচালিত বৈধ অর্থনৈতিক কাজ।"}, {q: "শিল্পকে কী বলা হয়?", a: "উৎপাদনের বাহন।"}, {q: "বাণিজ্য কীসের প্রতিবন্ধকতা দূর করে?", a: "বণ্টন সংক্রান্ত।"}, {q: "প্রজনন শিল্প কোনটি?", a: "নার্সারি বা হ্যাচারি।"}, {q: "নিষ্কাশন শিল্প কোনটি?", a: "খনি থেকে সম্পদ উত্তোলন।"}, {q: "পরিবহন কোন উপযোগ সৃষ্টি করে?", a: "স্থানগত।"}, {q: "গুদামজাতকরণ কোন উপযোগ সৃষ্টি করে?", a: "সময়গত।"}, {q: "ব্যাংকিং কোন বাধা দূর করে?", a: "আর্থিক।"}, {q: "বিমা কেন করা হয়?", a: "ঝুঁকিগত বাধা দূর করতে।"}, {q: "বিজ্ঞাপন কোন উপযোগ সৃষ্টি করে?", a: "জ্ঞানগত।"}, {q: "ব্যবসায়ের প্রধান লক্ষ্য কী?", a: "মুনাফা অর্জন।"}, {q: "ট্রেড (Trade) কী?", a: "পণ্য ক্রয় ও বিক্রয়।"}, {q: "রূপগত উপযোগ সৃষ্টি করে কোনটি?", a: "শিল্প।"}, {q: "স্বত্বগত উপযোগ সৃষ্টি হয় কিসের মাধ্যমে?", a: "পণ্য বিক্রয়।"}, {q: "ব্যবসায়ের শাখা কয়টি?", a: "৩টি (শিল্প, বাণিজ্য ও প্রত্যক্ষ সেবা)।"}, {q: "পণ্য কুক্ষিগত করা রোধ করে কোনটি?", a: "গুদামজাতকরণ।"}, {q: "পেশা কী?", a: "বিশেষায়িত জ্ঞানসম্পন্ন আয়মূলক কাজ।"}, {q: "ব্যবসায়িক ঝুঁকি কী?", a: "অনিশ্চয়তা থেকে ক্ষতির সম্ভাবনা।"}, {q: "ব্যবসায়ের সামাজিক দায়বদ্ধতা কী?", a: "সমাজের প্রতি কল্যাণমূলক কাজ।"}, {q: "নিমার্ণ শিল্প কোনটি?", a: "সেতু বা দালান তৈরি।"}, {q: "পণ্য বণ্টনকারী শাখা কোনটি?", a: "বাণিজ্য।"}, {q: "সেবা পরিবেশক শিল্প কোনটি?", a: "বিদ্যুৎ বা গ্যাস সরবরাহ।"}, {q: "ব্যবসায় কেন একটি সংগঠন?", a: "সুনির্দিষ্ট লক্ষ্য অর্জনে একীভূত।"}, {q: "আর্থিক কাজ কেন ব্যবসায়?", a: "মুনাফার উদ্দেশ্য থাকে বলে।"}, {q: "ভোক্তার দূরত্ব কমায় কে?", a: "বাণিজ্যিক মধ্যস্থতাকারী।"}],
+            [{q: "ব্যবসায় পরিবেশ কী?", a: "ব্যবসায়কে প্রভাবিতকারী পারিপার্শ্বিক উপাদানসমূহ।"}, {q: "প্রাকৃতিক পরিবেশের উপাদান কোনটি?", a: "জলবায়ু ও ভূ-প্রকৃতি।"}, {q: "সামাজিক পরিবেশের উপাদান কোনটি?", a: "জনসংখ্যা ও ঐতিহ্য।"}, {q: "অর্থনৈতিক পরিবেশের উপাদান কোনটি?", a: "সঞ্চয় ও বিনিয়োগ।"}, {q: "রাজনৈতিক পরিবেশের উপাদান কোনটি?", a: "আইন-শৃঙ্খলা ও সার্বভৌমত্ব।"}, {q: "মুদ্রাস্ফীতি কোন পরিবেশের অংশ?", a: "অর্থনৈতিক পরিবেশ।"}, {q: "ভোক্তার রুচি কোন পরিবেশের অংশ?", a: "সামাজিক পরিবেশ।"}, {q: "সরকারের কর নীতি কোন পরিবেশ?", a: "রাজনৈতিক বা আইনি পরিবেশ।"}, {q: "ই-কমার্স কোন পরিবেশের অবদান?", a: "প্রযুক্তিগত পরিবেশ।"}, {q: "পেটেন্ট আইন কোন পরিবেশের অংশ?", a: "আইনি পরিবেশ।"}, {q: "ধর্মীয় বিশ্বাস কোন পরিবেশের অংশ?", a: "সামাজিক পরিবেশ।"}, {q: "মূলধন বাজারের অবস্থা কোন পরিবেশ?", a: "অর্থনৈতিক পরিবেশ।"}, {q: "রাজনৈতিক স্থিতিশীলতা কেন দরকার?", a: "ব্যবসায় পরিবেশ উন্নয়নের জন্য।"}, {q: "শিক্ষা ও সংস্কৃতি কোন পরিবেশের অংশ?", a: "সামাজিক পরিবেশ।"}, {q: "সড়ক ও রেল যোগাযোগ কোন পরিবেশ?", a: "অর্থনৈতিক অবকাঠামো।"}, {q: "SWOT বিশ্লেষণের পূর্ণরূপ কী?", a: "Strengths, Weaknesses, Opportunities, Threats।"}, {q: "পরিবেশ কেন গতিশীল?", a: "উপাদানগুলো প্রতিনিয়ত পরিবর্তিত হয়।"}, {q: "বৈদেশিক নীতি কোন পরিবেশের অংশ?", a: "রাজনৈতিক পরিবেশ।"}, {q: "অটোমেশন কোন পরিবেশের অংশ?", a: "প্রযুক্তিগত পরিবেশ।"}, {q: "জলবায়ু পরিবর্তন কোন পরিবেশ?", a: "প্রাকৃতিক পরিবেশ।"}, {q: "শ্রমিক ইউনিয়ন কোন পরিবেশের অংশ?", a: "আইনি বা রাজনৈতিক পরিবেশ।"}, {q: "আইটি অবকাঠামো কোন পরিবেশের অংশ?", a: "প্রযুক্তিগত পরিবেশ।"}, {q: "ব্যবসায়ের অভ্যন্তরীণ পরিবেশ কী?", a: "যা প্রতিষ্ঠানের নিজস্ব নিয়ন্ত্রণে থাকে।"}, {q: "ব্যবসায়ের বাহ্যিক পরিবেশ কী?", a: "যা প্রতিষ্ঠানের নিয়ন্ত্রণের বাইরে।"}, {q: "পরিবেশ বিশ্লেষণ কেন করা হয়?", a: "সুযোগ গ্রহণ ও হুমকি মোকাবিলায়।"}],
+            [{q: "একমালিকানা ব্যবসায় কী?", a: "একজনের মালিকানাধীন ও পরিচালিত ব্যবসায়।"}, {q: "প্রাচীন ব্যবসায় সংগঠন কোনটি?", a: "একমালিকানা ব্যবসায়।"}, {q: "একমালিকানা মালিকের দায় কেমন?", a: "অসীম।"}, {q: "মালিকানা হস্তান্তরের সহজ উপায় কোনটি?", a: "একমালিকানা ব্যবসায়।"}, {q: "একমালিকানা ব্যবসায়ের সত্তা কেমন?", a: "মালিক ও ব্যবসায় অভিন্ন।"}, {q: "ট্রেড লাইসেন্স কোত্থেকে নিতে হয়?", a: "সিটি কর্পোরেশন বা ইউনিয়ন পরিষদ।"}, {q: "পচনশীল পণ্যের জন্য কোন ব্যবসায় উপযোগী?", a: "একমালিকানা ব্যবসায়।"}, {q: "দ্রুত সিদ্ধান্ত নেওয়ার জন্য কোনটি শ্রেষ্ঠ?", a: "একমালিকানা ব্যবসায়।"}, {q: "গোপনীয়তা রক্ষার জন্য সেরা সংগঠন কোনটি?", a: "একমালিকানা ব্যবসায়।"}, {q: "একমালিকানা ব্যবসায়ের সুবিধা?", a: "সহজ গঠন ও মালিকের স্বাধীনতা।"}, {q: "ব্যবসায়ের ঝুঁকি কে বহন করে?", a: "মালিক একাই।"}, {q: "একমালিকানা কেন নমনীয়?", a: "মালিক দ্রুত সিদ্ধান্ত বদলাতে পারেন।"}, {q: "মুনাফার সম্পূর্ণ দাবিদার কে?", a: "একক মালিক।"}, {q: "একমালিকানা ব্যবসায়ের অসুবিধা?", a: "মূলধনের স্বল্পতা ও সীমিত আয়ু।"}, {q: "মালিকের মৃত্যুতে এ ব্যবসায়ের কী হয়?", a: "সাধারণত বিলুপ্তি ঘটে।"}, {q: "শহর এলাকায় কেন লাইসেন্স লাগে?", a: "আইনি বৈধতা পালনে।"}, {q: "ব্যক্তিগত সম্পর্ক গড়ে তোলা সহজ কোথায়?", a: "একমালিকানা ব্যবসায়ের।"}, {q: "মালিকের অক্ষমতা ব্যবসায়কে কী করে?", a: "বন্ধ বা ক্ষতিগ্রস্ত করে।"}, {q: "সরাসরি ভোক্তা সেবা কোথায় বেশি?", a: "একমালিকানা ব্যবসায়ের।"}, {q: "ব্যবসায়ের আকার কেমন হয়?", a: "সাধারণত ক্ষুদ্র আকৃতির।"}, {q: "ব্যবস্থাপনা ও মালিকানা কোথায় এক?", a: "একমালিকানা ব্যবসায়ের।"}, {q: "অল্প পুঁজির জন্য উপযুক্ত ব্যবসায় কোনটি?", a: "একমালিকানা ব্যবসায়।"}, {q: "একমালিকানার স্থায়িত্ব কিসের ওপর নির্ভরশীল?", a: "মালিকের ইচ্ছার ওপর।"}, {q: "একাধিপত্য কোথায় সবচেয়ে বেশি?", a: "একমালিকানা ব্যবসায়ের সিদ্ধান্তে।"}, {q: "মুদি দোকান কোন সংগঠনের উদাহরণ?", a: "একমালিকানা ব্যবসায়।"}],
+            ...Array(9).fill([{q: "অপেক্ষা করুন...", a: "অ্যাডমিন প্যানেল থেকে প্রশ্ন যোগ করুন।"}])
+        ];
+
+        let curChap = 0, curIdx = 0, startX = 0;
+
+        function updateUI() {
+            const data = masterData[curChap][curIdx] || {q:"তথ্য নেই", a:"তথ্য নেই"};
+            document.getElementById('qText').textContent = data.q;
+            document.getElementById('aText').textContent = data.a;
+            document.getElementById('count').textContent = `${curIdx + 1} / ${masterData[curChap].length}`;
+            document.getElementById('mainCard').classList.remove('is-flipped');
+        }
+
+        function initChapter() { curChap = parseInt(document.getElementById('chapterMenu').value); curIdx = 0; updateUI(); }
+
+        function openAdmin() {
+            if(prompt("পাসওয়ার্ড (admin123):") === "admin123") {
+                document.getElementById('adminPanel').style.display = 'flex';
+                document.getElementById('editQ').value = masterData[curChap][curIdx].q;
+                document.getElementById('editA').value = masterData[curChap][curIdx].a;
+            }
+        }
+
+        function updateLocal(isNew) {
+            const q = document.getElementById('editQ').value;
+            const a = document.getElementById('editA').value;
+            if(isNew) masterData[curChap].push({q, a});
+            else masterData[curChap][curIdx] = {q, a};
+            updateUI();
+            alert("লোকালি পরিবর্তন হয়েছে। স্থায়ী করতে সবুজ বাটনটি টিপুন।");
+        }
+
+        function deleteLocal() {
+            if(confirm("মুছে ফেলবেন?")) {
+                masterData[curChap].splice(curIdx, 1);
+                if(curIdx > 0) curIdx--;
+                updateUI();
+            }
+        }
+
+        async function syncWithGithub() {
+            const btn = document.getElementById('syncBtn');
+            btn.textContent = "সার্ভারে সেভ হচ্ছে...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`https://api.github.com/repos/${REPO_NAME}/contents/${FILE_PATH}`, {
+                    headers: { "Authorization": `token ${GITHUB_TOKEN}` }
+                });
+                const fileData = await res.json();
+                const sha = fileData.sha;
+
+                const currentContent = decodeURIComponent(escape(atob(fileData.content)));
+                const newDataStr = "var masterData = " + JSON.stringify(masterData) + ";";
+                const updatedContent = currentContent.replace(/var masterData = \[[\s\S]*?\];/, newDataStr);
+
+                const updateRes = await fetch(`https://api.github.com/repos/${REPO_NAME}/contents/${FILE_PATH}`, {
+                    method: "PUT",
+                    headers: { "Authorization": `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        message: "Auto-sync from Admin Panel",
+                        content: btoa(unescape(encodeURIComponent(updatedContent))),
+                        sha: sha
+                    })
+                });
+
+                if(updateRes.ok) alert("অভিনন্দন! আপনার GitHub ফাইলটি স্বয়ংক্রিয়ভাবে আপডেট হয়ে গেছে।");
+                else alert("আপডেট ব্যর্থ হয়েছে!");
+            } catch (err) {
+                alert("কানেকশন এরর!");
+            }
+            btn.textContent = "সরাসরি GitHub-এ সেভ করুন";
+            btn.disabled = false;
+        }
+
+        const swipeArea = document.getElementById('swipeArea');
+        swipeArea.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
+        swipeArea.addEventListener('touchend', e => {
+            let diff = startX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && curIdx < masterData[curChap].length - 1) { curIdx++; updateUI(); }
+                else if (diff < 0 && curIdx > 0) { curIdx--; updateUI(); }
+            }
+        });
+
+        window.onload = updateUI;
+    </script>
+</body>
+</html>
